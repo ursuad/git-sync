@@ -80,7 +80,7 @@ push: .push-$(ARCH)
 push-legacy: .push-legacy-$(ARCH)
 .push-legacy-$(ARCH): .container-$(ARCH)
 ifeq ($(ARCH),amd64)
-	gcloud docker push $(LEGACY_AMD64_IMAGE):$(TAG)
+    docker push $(LEGACY_AMD64_IMAGE):$(TAG)
 endif
 	touch $@
 
