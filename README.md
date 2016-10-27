@@ -32,4 +32,3 @@ docker run -d \
     nginx
 ```
 
-[![Analytics](https://kubernetes-site.appspot.com/UA-36037335-10/GitHub/git-sync/README.md?pixel)]()
