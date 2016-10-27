@@ -54,6 +54,10 @@ var flWait = flag.Int("wait", envInt("GIT_SYNC_WAIT", 0),
 	"the number of seconds between syncs")
 var flOneTime = flag.Bool("one-time", envBool("GIT_SYNC_ONE_TIME", false),
 	"exit after the initial checkout")
+var flAddNonatomic = flag.Bool("add-nonatomic", envBool("GIT_SYNC_ADD_NONATOMIC", false),
+	"add nonatomic sync using rsync")
+var flNonatomicDest = flag.String("nonatomic-dest", envString("GIT_SYNC_NONATOMIC_DEST", ""),
+	"the destination directory where to sync files non atomically ")
 var flMaxSyncFailures = flag.Int("max-sync-failures", envInt("GIT_SYNC_MAX_SYNC_FAILURES", 0),
 	"the number of consecutive failures allowed before aborting (the first pull must succeed)")
 var flChmod = flag.Int("change-permissions", envInt("GIT_SYNC_PERMISSIONS", 0),
@@ -121,6 +125,11 @@ func main() {
 	if *flDest == "" {
 		parts := strings.Split(strings.Trim(*flRepo, "/"), "/")
 		*flDest = parts[len(parts)-1]
+	}
+	if *flAddNonatomic == true && *flNonatomicDest == "" {
+		fmt.Fprintf(os.Stderr, "ERROR: --nonatomic-dest needs to be specified if --add-nonatomic=true\n")
+		flag.Usage()
+		os.Exit(1)
 	}
 	if strings.Contains(*flDest, "/") {
 		fmt.Fprintf(os.Stderr, "ERROR: --dest must be a bare name\n")
@@ -286,6 +295,22 @@ func addWorktreeAndSwap(gitRoot, dest, branch, rev, hash string) error {
 		}
 	}
 
+	if *flAddNonatomic {
+		// clean the user path entry
+		cleanNonatomicDest := filepath.Clean(*flNonatomicDest)
+
+		// create the nonatomic sync-dir if needed
+		if _, err := os.Stat(cleanNonatomicDest); os.IsNotExist(err) {
+			os.Mkdir(cleanNonatomicDest, 0644)
+		}
+
+		// run rsync for the new directory
+		_, err := runCommand(worktreePath, "rsync", "-az", "--delete", "--exclude=.git*", ".", cleanNonatomicDest)
+		if err != nil {
+			return err
+		}
+		log.V(0).Infof("rsynced data from %s to %s", worktreePath, cleanNonatomicDest)
+	}
 	return updateSymlink(gitRoot, dest, worktreePath)
 }
 
@@ -362,7 +387,7 @@ func syncRepo(repo, branch, rev string, depth int, gitRoot, dest string) error {
 }
 
 // getRevs returns the local and upstream hashes for rev.
-func getRevs(localDir, branch string,  rev string) (string, string, error) {
+func getRevs(localDir, branch string, rev string) (string, string, error) {
 	// Ask git what the exact hash is for rev.
 	local, err := hashForRev(rev, localDir)
 	if err != nil {
