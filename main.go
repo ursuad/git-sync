@@ -58,6 +58,8 @@ var flAddNonatomic = flag.Bool("add-nonatomic", envBool("GIT_SYNC_ADD_NONATOMIC"
 	"add nonatomic sync using rsync")
 var flNonatomicDest = flag.String("nonatomic-dest", envString("GIT_SYNC_NONATOMIC_DEST", ""),
 	"the destination directory where to sync files non atomically ")
+var flNonatomicExclude = flag.String("nonatomic-exclude", envString("GIT_SYNC_NONATOMIC_EXCLUDE", ""),
+	"pattern that you don't want to be synced from your git repo")
 var flMaxSyncFailures = flag.Int("max-sync-failures", envInt("GIT_SYNC_MAX_SYNC_FAILURES", 0),
 	"the number of consecutive failures allowed before aborting (the first pull must succeed)")
 var flChmod = flag.Int("change-permissions", envInt("GIT_SYNC_PERMISSIONS", 0),
@@ -305,7 +307,7 @@ func addWorktreeAndSwap(gitRoot, dest, branch, rev, hash string) error {
 		}
 
 		// run rsync for the new directory
-		_, err := runCommand(worktreePath, "rsync", "-az", "--delete", "--exclude=.git*", ".", cleanNonatomicDest)
+		_, err := runCommand(worktreePath, "rsync", "-az", "--delete", "--exclude=.git*", "--exclude="+*flNonatomicExclude, ".", cleanNonatomicDest)
 		if err != nil {
 			return err
 		}
